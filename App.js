@@ -1,114 +1,112 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
-
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
-  ScrollView,
   View,
   Text,
-  StatusBar,
+  TouchableHighlight,
+  PermissionsAndroid,
 } from 'react-native';
+import CallDetectorManager from 'react-native-call-detection';
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+export default class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      featureOn: false,
+      incoming: false,
+      number: null,
+    };
+  }
 
-const App: () => React$Node = () => {
-  return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
+  componentDidMount() {
+    this.askPermission();
+  }
+  askPermission = async () => {
+    try {
+      const permissions = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
+        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+      ]);
+      console.log('Permissions : ', permissions);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  startListenerTapped = () => {
+    this.setState({featureOn: true});
+    this.callDetector = new CallDetectorManager(
+      (event, number) => {
+        if (event === 'Disconnected') {
+          // Do something call got disconnected
+          this.setState({incoming: false, number: null});
+        } else if (event === 'Incoming') {
+          // Do something call got incoming
+          this.setState({incoming: true, number});
+        } else if (event === 'Offhook') {
+          //Device call state: Off-hook.
+          // At least one call exists that is dialling,
+          // active, or on hold,
+          // and no calls are ringing or waiting.
+          this.setState({incoming: true, number});
+        } else if (event === 'Missed') {
+          // Do something call got missed
+          this.setState({incoming: false, number: null});
+        }
+      },
+      true, // if you want to read the phone number of the incoming call [ANDROID], otherwise false
+      () => {}, // callback if your permission got denied [ANDROID] [only if you want to read incoming number] default: console.error
+      {
+        title: 'Permissões',
+        message:
+          'Você precisa liberar as permissões para utilizar este app.',
+      }, // a custom permission request message to explain to your user, why you need the permission [recommended] - this is the default one
+    );
+  };
+  stopListenerTapped = () => {
+    this.setState({featureOn: false});
+    this.callDetector && this.callDetector.dispose();
+  };
+  render() {
+    return (
+      <View style={styles.body}>
+        <Text style={styles.text}>Monitorar ligações?</Text>
+        <TouchableHighlight
+          onPress={
+            this.state.featureOn
+              ? this.stopListenerTapped
+              : this.startListenerTapped
+          }>
+          <View
+            style={{
+              width: 200,
+              height: 200,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: this.state.featureOn ? 'greenyellow' : 'red',
+            }}>
+            <Text style={styles.text}>
+              {this.state.featureOn ? `SIM` : `NÃO`}{' '}
+            </Text>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </>
-  );
-};
-
+        </TouchableHighlight>
+        {this.state.incoming && (
+          <Text style={{fontSize: 50}}>Chamando {this.state.number}</Text>
+        )}
+      </View>
+    );
+  }
+}
 const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
-  },
-  engine: {
-    position: 'absolute',
-    right: 0,
-  },
   body: {
-    backgroundColor: Colors.white,
+    backgroundColor: 'honeydew',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
+  text: {
+    padding: 20,
+    fontSize: 20,
   },
 });
-
-export default App;
